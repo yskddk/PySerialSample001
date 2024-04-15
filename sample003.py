@@ -7,20 +7,44 @@ import csv
 
 
 
+
+def read_csv(csv_fpath_):
+    """
+    引数 file_ で指定される CSV ファイルを解析して，
+    リストを返します．
+
+    Parameter
+    ---------
+    csv_fpath_ : string
+        CSV ファイルへのパス文字列．
+
+    Return
+    ------
+    lines : list
+        CSV から読み出したデータ (2 次元リスト) ．
+    """
+
+    read_data = []
+    with open(csv_fpath_, encoding = 'utf-8', newline = '') as f_:
+        csv_ = csv.reader(f_)
+        read_data = [row_ for row_ in csv_]
+
+    return read_data
+
+
+
 def main():
 
-    positions_ = []
+    lines = read_csv('sample003.csv')
 
-    fname_ = 'sample003.csv'
-    with open(fname_, encoding = 'utf-8', newline = '') as f_:
-        csv_ = csv.reader(f_)
-        positions_ = [row_ for row_ in csv_]
-
-    for item_ in positions_:
-        if '#' == item_[0]:
-            print('comment: {}'.format(item_[1]))
+    i = 0
+    for item in lines:
+        val_ = input('HIT ENTER KEY TO NEXT..')
+        if '#' == item[0]:
+            print('[{}] comment: {}'.format(i, item[1]))
         else:
-            print('position: ({}, {})'.format(item_[0], item_[1]))
+            print('[{}] position: ({}, {})'.format(i, item[0], item[1]))
+        i += 1
 
     return 0
 
