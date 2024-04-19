@@ -5,6 +5,7 @@ import sys
 import io
 import time
 import gpiozero
+import subprocess
 
 
 
@@ -69,6 +70,14 @@ def btn_reload_handler():
 
 
 
+def btn_shdown_handler():
+    LOG_.debug('shdown pushed')
+    time.sleep(0.5);
+    subprocess.check_call(['sudo', 'poweroff'])
+    return
+
+
+
 def main():
     # https://gpiozero.readthedocs.io/en/latest/recipes.html
     # pin #34, GND
@@ -80,10 +89,12 @@ def main():
     btn_next   = gpiozero.Button('GPIO13')  # pin #33
     btn_prev   = gpiozero.Button('GPIO19')  # pin #35
     btn_reload = gpiozero.Button('GPIO26')  # pin #37
+    btn_shdown = gpiozero.Button('GPIO27')  # pin #11
     
     btn_next.when_pressed   = btn_next_handler
     btn_prev.when_pressed   = btn_prev_handler
     btn_reload.when_pressed = btn_reload_handler
+    btn_shdown.when_pressed = btn_shdown_handler
 
     led_ind = gpiozero.LED('GPIO21')        # pin #40
     led_ind.on()
