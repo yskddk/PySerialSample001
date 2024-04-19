@@ -21,9 +21,9 @@ def eprint_(*args, **kwargs):
 from logging import (basicConfig, getLogger, DEBUG, INFO, WARNING, ERROR, CRITICAL)
 
 # This line is required in the program main file only.
-basicConfig(level = DEBUG)
+#basicConfig(level = DEBUG)
 #basicConfig(level = INFO)
-#basicConfig(level = WARNING)   # as default
+basicConfig(level = WARNING)   # as default
 #basicConfig(level = ERROR)
 #basicConfig(level = CRITICAL)
 
@@ -106,9 +106,11 @@ def main():
         g_btn_reload_ = False
 
         i += 1
-        if i % 1:
+        if 1 == (i % 2):
+            LOG_.debug('LED ON');
             led_ind.on()
         else:
+            LOG_.debug('LED OFF');
             led_ind.off()
 
     return 0
