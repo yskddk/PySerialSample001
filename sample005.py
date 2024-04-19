@@ -47,6 +47,7 @@ g_btn_reload_ = False
 
 def btn_next_handler():
     LOG_.debug('next pushed')
+    global g_btn_next_
     g_btn_next_ = True
     return
    
@@ -54,6 +55,7 @@ def btn_next_handler():
 
 def btn_prev_handler():
     LOG_.debug('prev pushed')
+    global g_btn_prev_
     g_btn_prev_ = True
     return
 
@@ -61,6 +63,7 @@ def btn_prev_handler():
 
 def btn_reload_handler():
     LOG_.debug('reload pushed')
+    global g_btn_reload_
     g_btn_reload_ = True
     return
 
@@ -69,6 +72,10 @@ def btn_reload_handler():
 def main():
     # https://gpiozero.readthedocs.io/en/latest/recipes.html
     # pin #34, GND
+
+    global g_btn_next_
+    global g_btn_prev_
+    global g_btn_reload_
 
     btn_next   = gpiozero.Button('GPIO13')  # pin #33
     btn_prev   = gpiozero.Button('GPIO19')  # pin #35
