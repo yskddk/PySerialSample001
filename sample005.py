@@ -82,7 +82,7 @@ def main():
     led_ind.on()
 
     i = 0
-    white True:
+    while True:
         time.sleep(0.25);
 
         if g_btn_next_:
