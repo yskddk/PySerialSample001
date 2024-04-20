@@ -78,6 +78,32 @@ def btn_shdown_handler():
 
 
 
+def switch_led(pattern_):
+
+    if 'ON' == pattern_:
+        LOG_.debug('led to {}'.format(pattern_))
+        subprocess.check_call(['sudo', 'swled', 'ON'])
+
+    elif 'OFF' == pattern_:
+        LOG_.debug('led to {}'.format(pattern_))
+        subprocess.check_call(['sudo', 'swled', 'OFF'])
+
+    elif 'TIMER' == pattern_:
+        LOG_.debug('led to {}'.format(pattern_))
+        subprocess.check_call(['sudo', 'swled', 'TIMER'])
+
+    elif 'HEARTBEAT' == pattern_:
+        LOG_.debug('led to {}'.format(pattern_))
+        subprocess.check_call(['sudo', 'swled', 'HEARTBEAT'])
+
+    else:
+        LOG_.debug('led not changed')
+
+    return
+
+
+
+
 def main():
     # https://gpiozero.readthedocs.io/en/latest/recipes.html
     # pin #34, GND
@@ -99,18 +125,30 @@ def main():
     led_ind = gpiozero.LED('GPIO21')        # pin #40
     led_ind.on()
 
+    switch_led('OFF')
+
+    is_loaded = False
     i = 0
     while True:
-        time.sleep(0.25);
+        time.sleep(0.1);
 
         if g_btn_next_:
-            eprint_('NEXT')
+            if is_loaded:
+                eprint_('NEXT')
+            else:
+                switch_led('HEARTBEAT')
+
         
         if g_btn_prev_:
-            eprint_('PREV')
+            if is_loaded:
+                eprint_('PREV')
+            else:
+                switch_led('HEARTBEAT')
 
         if g_btn_reload_:
             eprint_('RELOAD')
+            is_loaded = True
+            switch_led('ON')
 
         g_btn_next_   = False
         g_btn_prev_   = False

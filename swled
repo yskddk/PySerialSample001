@@ -1,0 +1,21 @@
+#!/bin/sh
+#!/bin/sh -vx
+
+PATH='/bin:/local/bin'
+
+TRIGGER_F='/sys/class/leds/PWR/trigger'
+BRIGHTNESS_F='/sys/class/leds/PWR/brightness'
+
+if [ 'xON' = x"$1" ] ; then
+  echo 'none' > "$TRIGGER_F"
+  echo '1'    > "$BRIGHTNESS_F"
+
+elif [ 'xOFF' = x"$1" ] ; then
+  echo 'none' > "$TRIGGER_F"
+  echo 0      > "$BRIGHTNESS_F"
+
+elif [ 'xTIMER' = x"$1" ] ; then
+  echo 'timer' > "$TRIGGER_F"
+elif [ 'xHEARTBEAT' = x"$1" ] ; then
+  echo 'heartbeat' > "$TRIGGER_F"
+fi
