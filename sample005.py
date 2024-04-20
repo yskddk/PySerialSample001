@@ -124,6 +124,13 @@ def main():
 
     led_ind = gpiozero.LED('GPIO21')        # pin #40
     led_ind.on()
+    time.sleep(0.1)
+    led_ind.off()
+    time.sleep(0.1)
+    led_ind.on()
+    time.sleep(0.1)
+    led_ind.off()
+    time.sleep(0.1)
 
     switch_led('OFF')
 
@@ -138,7 +145,6 @@ def main():
             else:
                 switch_led('HEARTBEAT')
 
-        
         if g_btn_prev_:
             if is_loaded:
                 eprint_('PREV')
@@ -153,14 +159,6 @@ def main():
         g_btn_next_   = False
         g_btn_prev_   = False
         g_btn_reload_ = False
-
-        i += 1
-        if 1 == (i % 2):
-            LOG_.debug('LED ON');
-            led_ind.on()
-        else:
-            LOG_.debug('LED OFF');
-            led_ind.off()
 
     return 0
 
