@@ -1,0 +1,32 @@
+#!/bin/sh
+#!/bin/sh -vx
+
+set -eu
+
+PATH='/bin:/local/bin'
+
+CSV_FILE_='d220.csv'
+USBFLASH_DEV_='/dev/sda1'
+
+MNT_DIR_='/mnt'
+TMP_DIR_='/tmp'
+
+INPUT_FILE_="${MNT_DIR_}/${CSV_FILE_}"
+OUTPUT_FILE_="${TMP_DIR_}/${CSV_FILE_}"
+
+if [ ! -b "$USBFLASH_DEV_" ] ; then
+  echo "USB Flash ${USBFLASH_DEV_} does not found." >&2
+  exit 0
+fi
+
+if [ ! `mount "$USBFLASH_DEV_" "$MNT_DIR_"` ] ; then
+  echo "Failed to mount." >&2
+  exit 0
+fi
+
+if [ -e "$INPUT_FILE_" ] ; then
+  cp -f "$INPUT_FILE_" "$OUTPUT_FILE_"
+fi
+
+umount "$MNT_DIR_"
+exit 0
