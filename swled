@@ -1,6 +1,8 @@
 #!/bin/sh
 #!/bin/sh -vx
 
+set -eu
+
 PATH='/bin:/local/bin'
 
 TRIGGER_F='/sys/class/leds/PWR/trigger'
