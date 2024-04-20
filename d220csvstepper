@@ -1,0 +1,451 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
+import sys
+import io
+import time
+import csv
+import serial
+import serial.tools.list_ports
+import gpiozero
+import subprocess
+
+
+
+CSV_FILE_ = '/tmp/d220.csv'
+
+
+
+# https://stackoverflow.com/questions/5574702/how-do-i-print-to-stderr-in-python
+def eprint_(*args, **kwargs):
+    print(*args, file=sys.stderr, **kwargs)
+
+
+
+# This line is required for all related files.
+#   https://docs.python.org/ja/3/howto/logging.html
+#   https://qiita.com/amedama/items/b856b2f30c2f38665701
+#   https://qiita.com/shinsa82/items/a0778fbd127012c93577
+from logging import (basicConfig, getLogger, DEBUG, INFO, WARNING, ERROR, CRITICAL)
+
+# This line is required in the program main file only.
+#basicConfig(level = DEBUG)
+#basicConfig(level = INFO)
+basicConfig(level = WARNING)   # as default
+#basicConfig(level = ERROR)
+#basicConfig(level = CRITICAL)
+
+# This line is required for all related files.
+# After this, we can use those logging functions:
+#   LOG_.debug()
+#   LOG_.info()
+#   LOG_.warning()
+#   LOG_.error()
+#   LOG_.critical()
+#   LOG_.exception()
+LOG_ = getLogger(__name__)
+
+
+
+g_btn_ldusb_  = False
+g_btn_reload_ = False
+g_btn_prev_   = False
+g_btn_next_   = False
+
+
+
+def btn_ldusb_handler():
+    LOG_.debug('reload pushed')
+    global g_btn_ldusb_
+    g_btn_ldusb_ = True
+    return
+
+
+
+def btn_reload_handler():
+    LOG_.debug('reload pushed')
+    global g_btn_reload_
+    g_btn_reload_ = True
+    return
+
+
+
+def btn_shdown_handler():
+    LOG_.debug('shdown pushed')
+    time.sleep(0.5);
+    subprocess.check_call(['sudo', 'poweroff'])
+    return
+
+
+
+def btn_prev_handler():
+    LOG_.debug('prev pushed')
+    global g_btn_prev_
+    g_btn_prev_ = True
+    return
+
+
+
+def btn_next_handler():
+    LOG_.debug('next pushed')
+    global g_btn_next_
+    g_btn_next_ = True
+    return
+   
+
+
+def switch_led(pattern_):
+
+    if 'ON' == pattern_:
+        LOG_.debug('led to {}'.format(pattern_))
+        subprocess.check_call(['sudo', 'swled', 'ON'])
+
+    elif 'OFF' == pattern_:
+        LOG_.debug('led to {}'.format(pattern_))
+        subprocess.check_call(['sudo', 'swled', 'OFF'])
+
+    elif 'TIMER' == pattern_:
+        LOG_.debug('led to {}'.format(pattern_))
+        subprocess.check_call(['sudo', 'swled', 'TIMER'])
+
+    elif 'HEARTBEAT' == pattern_:
+        LOG_.debug('led to {}'.format(pattern_))
+        subprocess.check_call(['sudo', 'swled', 'HEARTBEAT'])
+
+    else:
+        LOG_.debug('led not changed')
+
+    return
+
+
+
+def flash_led():
+    switch_led('OFF')
+    time.sleep(0.1)
+    switch_led('ON')
+    time.sleep(0.1)
+    switch_led('OFF')
+    time.sleep(0.1)
+    switch_led('ON')
+    return
+    
+
+
+def read_csv(csv_fpath_):
+    """
+    Get the (x,y) position data from the CSV file and return as list.
+
+    Parameter
+    ---------
+    csv_fpath_ : string
+        Full-path of the CSV file.
+
+    Return
+    ------
+    read_data : list
+        List object of (x,y) position data obtained from the CSV file.
+    """
+
+    read_data = []
+    with open(csv_fpath_, encoding = 'utf-8', newline = '') as f_:
+        csv_ = csv.reader(f_)
+        read_data = [row_ for row_ in csv_]
+
+    return read_data
+
+
+
+def open_com(com_fpath_):
+    """
+    Open the specified COM port.
+
+    Parameter
+    ---------
+    com_fpath_ : string
+        Full-path of the COM port character device file.
+
+    Return
+    ------
+    serial_obj : serial.Serial
+        serial.Serial object.
+    """
+    ser = serial.Serial(                \
+        port = com_fpath_,              \
+        baudrate = 9600,                \
+        bytesize = serial.EIGHTBITS,    \
+        parity = serial.PARITY_NONE,    \
+        stopbits = serial.STOPBITS_ONE, \
+        write_timeout = 0.5,            \
+        timeout = 0.5,                  \
+        xonxoff = False,                \
+        rtscts = True,                  \
+        dsrdtr = False,                 \
+        )
+    return ser
+
+
+
+def send_command(ser_, cmd_):
+    """
+    Send command and wait response.
+
+    Parameters
+    ----------
+    ser_ : serial.Serial
+        serial.Serial object.
+    cmd_ : bytes
+        Command bytes.
+
+    Return
+    ------
+    result : bool
+        Happened error returns False, otherwize returns True.
+    """
+    LOG_.debug('dev={} cmd_={}'.format(ser_.port, cmd_))
+
+    try:
+        # send command
+        ser_.write(cmd_)
+        return True
+
+    except:
+        return False
+
+
+
+def readline_CR(ser_):
+    """
+    This version of the readline() treats newline as CR.
+    Referenced to https://stackoverflow.com/questions/16470903/ .
+
+    Parameter
+    ---------
+    ser_ : serial.Serial object
+        Serial package's class object.
+
+    Return
+    ------
+    read_line : bytearray
+        Received 1 line of data as a bytes object with CR at the end.
+    """
+    CR__ = b'\r'
+    try:
+        read_line = bytearray()
+
+        while True:
+            c = ser_.read(1)
+            if not c:
+                # no data
+                read_line = bytearray() #clear
+                break
+
+            read_line += c
+            if c == CR__:
+                break
+
+        return bytes(read_line)
+
+    except:
+        return CR__
+
+
+
+def wait_for_axis_moving(ser_):
+    """
+    Wait for axises moving to stop.
+
+    Parameter
+    ---------
+    ser_ : serial.Serial
+        serial.Serial object.
+
+    Return
+    ------
+    result : bool
+        Happened error returns False, otherwize returns True.
+    """
+    try:
+        while True:
+            time.sleep(0.25)
+
+            cmd = b'MOTIONAll?\r'
+            send_command(ser_, cmd)
+            rsp = readline_CR(ser_)
+
+            flags = int(rsp.decode('ascii').replace('\r', ''))
+            flags = (0x03 & flags)
+            LOG_.debug('axis 0x0{}'.format(flags))
+            if 0 == flags:
+                return True
+
+    except:
+        return False
+
+
+
+def go_axis(ser_, xy_):
+    """
+    Go to the (x,y) position.
+
+    Parameters
+    ----------
+    ser_ : serial.Serial
+        serial.Serial object.
+    xy_ : list
+        xy_[0] is x, xy_[1] is y.
+
+    Return
+    ------
+    result : bool
+        Happened error returns False, otherwize returns True.
+    """
+
+    result = False
+
+    LOG_.debug('polling *ESR?')
+    cmd = b'*ESR?\r'
+    send_command(ser_, cmd)
+    rsp = readline_CR(ser_)
+    LOG_.debug('cmd "{}" rsp "{}"'.format(      \
+        cmd.decode('ascii').replace('\r', ''),  \
+        rsp.decode('ascii').replace('\r', '')))
+
+    time.sleep(0.2)
+
+    LOG_.debug('go to ({}, {})'.format(xy_[0], xy_[1]))
+    cmd = 'AXIsX:GOABSolute {}:AXIsY:GOABSolute {}\r'.format(xy_[0], xy_[1]).encode('ascii')
+    send_command(ser_, cmd);
+    result = wait_for_axis_moving(ser_)
+
+    time.sleep(0.2)
+
+    return result
+
+
+
+def main():
+
+    # List the COM ports
+    #   https://pyserial.readthedocs.io/en/latest/tools.html#serial.tools.list_ports.ListPortInfo
+    com_ports = serial.tools.list_ports.comports()
+    LOG_.debug('{} COM port(s) found'.format(len(com_ports)))
+    if (0 == len(com_ports)):
+        eprint_('No serial ports found.');
+        return 0
+
+    ## for cport in com_ports:
+    ##     LOG_.debug('+++ {}'.format(cport.device))
+
+    LOG_.debug('open {}'.format(com_ports[0].device))
+    serialObj = open_com(com_ports[0].device)
+
+    # https://gpiozero.readthedocs.io/en/latest/recipes.html
+    #   GPIO5  |29|30| GND
+    #   GPIO6  |31|32| GPIO12
+    #   GPIO13 |33|34| GND
+    #   GPIO19 |35|36| GPIO16
+    #   GPIO26 |37|38| GPIO20
+    #   GND    |39|40| GPIO21
+    #          +--+--+
+
+    global g_btn_ldusb_
+    global g_btn_reload_
+    global g_btn_prev_
+    global g_btn_next_
+
+    btn_shdown = gpiozero.Button('GPIO13', bounce_time = 0.1)   # pin #33
+    btn_ldusb  = gpiozero.Button('GPIO19', bounce_time = 0.1)   # pin #35
+    btn_reload = gpiozero.Button('GPIO26', bounce_time = 0.1)   # pin #37
+    btn_prev   = gpiozero.Button('GPIO20', bounce_time = 0.1)   # pin #38
+    btn_next   = gpiozero.Button('GPIO16', bounce_time = 0.1)   # pin #36
+    
+    btn_shdown.when_pressed = btn_shdown_handler
+    btn_ldusb.when_pressed  = btn_ldusb_handler
+    btn_reload.when_pressed = btn_reload_handler
+    btn_prev.when_pressed   = btn_prev_handler
+    btn_next.when_pressed   = btn_next_handler
+
+    xytab = []
+    line = 0
+    is_ready = False
+    switch_led('OFF')
+
+    while True:
+        time.sleep(0.1)
+
+        if g_btn_ldusb_:
+            LOG_.debug('LDUSB')
+            subprocess.check_call(['sudo', 'ldusb'])
+            is_ready = False
+            switch_led('OFF')
+
+        if g_btn_reload_:
+            xytab = read_csv(CSV_FILE_)
+            if 0 < len(xytab):
+                LOG_.debug('RELOAD {} xytab found'.format(len(xytab)))
+                line = 0
+                is_ready = True
+                switch_led('ON')
+            else:
+                LOG_.debug('csv loading error')
+                is_ready = False
+                switch_led('HEARTBEAT')
+
+        if g_btn_prev_:
+            if not is_ready:
+                LOG_.debug('prev, data is not ready')
+                is_ready = False
+                switch_led('HEARTBEAT')
+            else:
+                while True:
+                    line -= 1
+                    if line < 0:
+                        LOG_.debug('already head')
+                        line = 0
+                        flash_led()
+                        break
+
+                    if '#' == xytab[line][0]:
+                        LOG_.debug('[{}] prev comment'.format(line))
+                        continue
+
+                    LOG_.debug('[{}] prev position: ({}, {})'.format(    \
+                            line, xytab[line][0], xytab[line][1]))
+                    go_axis(serialObj, xytab[line]):
+                    break;
+
+        if g_btn_next_:
+            if not is_ready:
+                LOG_.debug('next, data is not ready')
+                is_ready = False
+                switch_led('HEARTBEAT')
+            else:
+                while True:
+                    line += 1
+                    if len(xytab) <= line:
+                        LOG_.debug('already tail')
+                        line = len(xytab) - 1
+                        flash_led()
+                        break
+
+                    if '#' == xytab[line][0]:
+                        LOG_.debug('[{}] next comment'.format(line))
+                        continue
+                    
+                    LOG_.debug('[{}] next position: ({}, {})'.format(    \
+                            line, xytab[line][0], xytab[line][1]))
+                    go_axis(serialObj, xytab[line]):
+                    break;
+
+        g_btn_ldusb_  = False
+        g_btn_reload_ = False
+        g_btn_prev_   = False
+        g_btn_next_   = False
+
+    return 0
+
+
+
+if __name__ == '__main__':
+    # execute only if run as a script
+    sys.exit(main())
