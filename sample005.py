@@ -40,24 +40,17 @@ LOG_ = getLogger(__name__)
 
 
 
-g_btn_next_   = False
-g_btn_prev_   = False
+g_btn_ldusb_  = False
 g_btn_reload_ = False
+g_btn_prev_   = False
+g_btn_next_   = False
 
 
 
-def btn_next_handler():
-    LOG_.debug('next pushed')
-    global g_btn_next_
-    g_btn_next_ = True
-    return
-   
-
-
-def btn_prev_handler():
-    LOG_.debug('prev pushed')
-    global g_btn_prev_
-    g_btn_prev_ = True
+def btn_ldusb_handler():
+    LOG_.debug('reload pushed')
+    global g_btn_ldusb_
+    g_btn_ldusb_ = True
     return
 
 
@@ -76,6 +69,22 @@ def btn_shdown_handler():
     subprocess.check_call(['sudo', 'poweroff'])
     return
 
+
+
+def btn_prev_handler():
+    LOG_.debug('prev pushed')
+    global g_btn_prev_
+    g_btn_prev_ = True
+    return
+
+
+
+def btn_next_handler():
+    LOG_.debug('next pushed')
+    global g_btn_next_
+    g_btn_next_ = True
+    return
+   
 
 
 def switch_led(pattern_):
@@ -108,19 +117,22 @@ def main():
     # https://gpiozero.readthedocs.io/en/latest/recipes.html
     # pin #34, GND
 
-    global g_btn_next_
-    global g_btn_prev_
+    global g_btn_ldusb_
     global g_btn_reload_
+    global g_btn_prev_
+    global g_btn_next_
 
-    btn_next   = gpiozero.Button('GPIO13')  # pin #33
-    btn_prev   = gpiozero.Button('GPIO19')  # pin #35
+    btn_shdown = gpiozero.Button('GPIO13')  # pin #33
+    btn_ldusb  = gpiozero.Button('GPIO19')  # pin #35
     btn_reload = gpiozero.Button('GPIO26')  # pin #37
-    btn_shdown = gpiozero.Button('GPIO27')  # pin #11
+    btn_prev   = gpiozero.Button('GPIO20')  # pin #38
+    btn_next   = gpiozero.Button('GPIO16')  # pin #36
     
-    btn_next.when_pressed   = btn_next_handler
-    btn_prev.when_pressed   = btn_prev_handler
-    btn_reload.when_pressed = btn_reload_handler
     btn_shdown.when_pressed = btn_shdown_handler
+    btn_ldusb.when_pressed  = btn_ldusb_handler
+    btn_reload.when_pressed = btn_reload_handler
+    btn_prev.when_pressed   = btn_prev_handler
+    btn_next.when_pressed   = btn_next_handler
 
     led_ind = gpiozero.LED('GPIO21')        # pin #40
     led_ind.on()
@@ -133,32 +145,39 @@ def main():
     time.sleep(0.1)
 
     switch_led('OFF')
+    is_csv = False
 
-    is_loaded = False
     i = 0
     while True:
         time.sleep(0.1);
 
-        if g_btn_next_:
-            if is_loaded:
-                eprint_('NEXT')
-            else:
-                switch_led('HEARTBEAT')
+        if g_btn_ldusb_:
+            eprint_('LDUSB')
+            subprocess.check_call(['sudo', 'ldusb'])
+            switch_led('OFF')
+            is_csv = False
+
+        if g_btn_reload_:
+            eprint_('RELOAD')
+            switch_led('ON')
+            is_csv = True
 
         if g_btn_prev_:
-            if is_loaded:
+            if is_csv:
                 eprint_('PREV')
             else:
                 switch_led('HEARTBEAT')
 
-        if g_btn_reload_:
-            eprint_('RELOAD')
-            is_loaded = True
-            switch_led('ON')
+        if g_btn_next_:
+            if is_csv:
+                eprint_('NEXT')
+            else:
+                switch_led('HEARTBEAT')
 
-        g_btn_next_   = False
-        g_btn_prev_   = False
+        g_btn_ldusb_  = False
         g_btn_reload_ = False
+        g_btn_prev_   = False
+        g_btn_next_   = False
 
     return 0
 
