@@ -122,11 +122,19 @@ def main():
     global g_btn_prev_
     global g_btn_next_
 
-    btn_shdown = gpiozero.Button('GPIO13')  # pin #33
-    btn_ldusb  = gpiozero.Button('GPIO19')  # pin #35
-    btn_reload = gpiozero.Button('GPIO26')  # pin #37
-    btn_prev   = gpiozero.Button('GPIO20')  # pin #38
-    btn_next   = gpiozero.Button('GPIO16')  # pin #36
+    #   GPIO5  |29|30| GND
+    #   GPIO6  |31|32| GPIO12
+    #   GPIO13 |33|34| GND
+    #   GPIO19 |35|36| GPIO16
+    #   GPIO26 |37|38| GPIO20
+    #   GND    |39|40| GPIO21
+    #          +--+--+
+
+    btn_shdown = gpiozero.Button('GPIO13', bounce_time = 0.1)   # pin #33
+    btn_ldusb  = gpiozero.Button('GPIO19', bounce_time = 0.1)   # pin #35
+    btn_reload = gpiozero.Button('GPIO26', bounce_time = 0.1)   # pin #37
+    btn_prev   = gpiozero.Button('GPIO20', bounce_time = 0.1)   # pin #38
+    btn_next   = gpiozero.Button('GPIO16', bounce_time = 0.1)   # pin #36
     
     btn_shdown.when_pressed = btn_shdown_handler
     btn_ldusb.when_pressed  = btn_ldusb_handler
@@ -134,15 +142,15 @@ def main():
     btn_prev.when_pressed   = btn_prev_handler
     btn_next.when_pressed   = btn_next_handler
 
-    led_ind = gpiozero.LED('GPIO21')        # pin #40
-    led_ind.on()
-    time.sleep(0.1)
-    led_ind.off()
-    time.sleep(0.1)
-    led_ind.on()
-    time.sleep(0.1)
-    led_ind.off()
-    time.sleep(0.1)
+    ## led_ind = gpiozero.LED('GPIO21')        # pin #40
+    ## led_ind.on()
+    ## time.sleep(0.1)
+    ## led_ind.off()
+    ## time.sleep(0.1)
+    ## led_ind.on()
+    ## time.sleep(0.1)
+    ## led_ind.off()
+    ## time.sleep(0.1)
 
     switch_led('OFF')
     is_csv = False
