@@ -1,0 +1,23 @@
+# cp d220csvstepper /usr/local/bin
+# cp swled /usr/local/bin
+# cp ldusb /usr/local/bin
+# cp d220csvstepper.service ~/.config/systemd/user/
+# systemctl --user enable d220csvstepper.service
+# sudo loginctl enable-linger pi
+
+[Unit]
+Description=D220 stepping motor controller CSV stepper
+
+[Service]
+ExecStart=/usr/local/bin/d220csvstepper
+ExecStop=/bin/kill ${MAINPID}
+Type=simple
+Restart=always
+KillMode=process
+
+# create a directory at /run/user/${pid}/${RuntimeDirectory}
+RuntimeDirectory=d220csvstepper
+RuntimeDirectoryMode=0755
+
+[Install]
+WantedBy=default.target
