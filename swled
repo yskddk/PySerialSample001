@@ -5,19 +5,25 @@ set -eu
 
 PATH='/bin:/local/bin'
 
-TRIGGER_F='/sys/class/leds/PWR/trigger'
-BRIGHTNESS_F='/sys/class/leds/PWR/brightness'
+led_='PWR'
+if [ 'xACT' = x"$1" ] ; then
+  led_='ACT'
+fi
+trig_path_="/sys/class/leds/${led_}/trigger"
+bright_path_="/sys/class/leds/${led_}/brightness"
 
-if [ 'xON' = x"$1" ] ; then
-  echo 'none' > "$TRIGGER_F"
-  echo '1'    > "$BRIGHTNESS_F"
+if [ 'xON' = x"$2" ] ; then
+  echo 'none' | tee "$trig_path_"
+  echo '1'    | tee "$bright_path_"
 
-elif [ 'xOFF' = x"$1" ] ; then
-  echo 'none' > "$TRIGGER_F"
-  echo 0      > "$BRIGHTNESS_F"
+elif [ 'xOFF' = x"$2" ] ; then
+  echo 'none' > "$trig_path_"
+  echo 0      > "$bright_path_"
 
-elif [ 'xTIMER' = x"$1" ] ; then
-  echo 'timer' > "$TRIGGER_F"
-elif [ 'xHEARTBEAT' = x"$1" ] ; then
-  echo 'heartbeat' > "$TRIGGER_F"
+elif [ 'xTIMER' = x"$2" ] ; then
+  echo 'timer' > "$trig_path_"
+
+elif [ 'xHEARTBEAT' = x"$2" ] ; then
+  echo 'heartbeat' > "$trig_path_"
+
 fi

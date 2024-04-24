@@ -29,20 +29,20 @@ def eprint_(*args, **kwargs):
 from logging import (basicConfig, getLogger, DEBUG, INFO, WARNING, ERROR, CRITICAL)
 
 # This line is required in the program main file only.
-#basicConfig(level = DEBUG)
-#basicConfig(level = INFO)
-basicConfig(level = WARNING)   # as default
-#basicConfig(level = ERROR)
 #basicConfig(level = CRITICAL)
+#basicConfig(level = ERROR)
+#basicConfig(level = WARNING)    # as default
+#basicConfig(level = INFO)
+basicConfig(level = DEBUG)
 
 # This line is required for all related files.
 # After this, we can use those logging functions:
-#   LOG_.debug()
-#   LOG_.info()
-#   LOG_.warning()
-#   LOG_.error()
-#   LOG_.critical()
 #   LOG_.exception()
+#   LOG_.critical()
+#   LOG_.error()
+#   LOG_.warning()
+#   LOG_.info()
+#   LOG_.debug()
 LOG_ = getLogger(__name__)
 
 
@@ -96,21 +96,25 @@ def btn_next_handler():
 
 def switch_led(pattern_):
 
-    if 'ON' == pattern_:
+    if 'SYSTEM_BOOTED' == pattern_:
         LOG_.debug('led to {}'.format(pattern_))
-        subprocess.check_call(['sudo', 'swled', 'ON'])
+        subprocess.check_call(['sudo', 'swled', 'ACT', 'TIMER'])
 
-    elif 'OFF' == pattern_:
+    elif 'APP_DORMANT' == pattern_:
         LOG_.debug('led to {}'.format(pattern_))
-        subprocess.check_call(['sudo', 'swled', 'OFF'])
+        subprocess.check_call(['sudo', 'swled', 'PWR', 'OFF'])
 
-    elif 'TIMER' == pattern_:
+    elif 'APP_READY' == pattern_:
         LOG_.debug('led to {}'.format(pattern_))
-        subprocess.check_call(['sudo', 'swled', 'TIMER'])
+        subprocess.check_call(['sudo', 'swled', 'PWR', 'ON'])
 
-    elif 'HEARTBEAT' == pattern_:
+    elif 'APP_BUSY' == pattern_:
         LOG_.debug('led to {}'.format(pattern_))
-        subprocess.check_call(['sudo', 'swled', 'HEARTBEAT'])
+        subprocess.check_call(['sudo', 'swled', 'PWR', 'TIMER'])
+
+    elif 'APP_ERROR' == pattern_:
+        LOG_.debug('led to {}'.format(pattern_))
+        subprocess.check_call(['sudo', 'swled', 'PWR', 'HEARTBEAT'])
 
     else:
         LOG_.debug('led not changed')
@@ -120,13 +124,13 @@ def switch_led(pattern_):
 
 
 def flash_led():
-    switch_led('OFF')
+    switch_led('APP_DORMANT')
     time.sleep(0.1)
-    switch_led('ON')
+    switch_led('APP_READY')
     time.sleep(0.1)
-    switch_led('OFF')
+    switch_led('APP_DORMANT')
     time.sleep(0.1)
-    switch_led('ON')
+    switch_led('APP_READY')
     return
     
 
@@ -147,9 +151,13 @@ def read_csv(csv_fpath_):
     """
 
     read_data = []
-    with open(csv_fpath_, encoding = 'utf-8', newline = '') as f_:
-        csv_ = csv.reader(f_)
-        read_data = [row_ for row_ in csv_]
+
+    try:
+        with open(csv_fpath_, encoding = 'utf-8', newline = '') as f_:
+            csv_ = csv.reader(f_)
+            read_data = [row_ for row_ in csv_]
+    except:
+        read_data = []
 
     return read_data
 
@@ -353,49 +361,57 @@ def main():
     global g_btn_prev_
     global g_btn_next_
 
-    btn_shdown = gpiozero.Button('GPIO13', bounce_time = 0.1)   # pin #33
+    # button hold 3s to shutdown
+    btn_shdown = gpiozero.Button('GPIO13', bounce_time = 0.1, hold_time = 3.0)   # pin #33
+    btn_shdown.when_held    = btn_shdown_handler
+
+    # buttons push debounced 100ms to work
     btn_ldusb  = gpiozero.Button('GPIO19', bounce_time = 0.1)   # pin #35
     btn_reload = gpiozero.Button('GPIO26', bounce_time = 0.1)   # pin #37
     btn_prev   = gpiozero.Button('GPIO20', bounce_time = 0.1)   # pin #38
     btn_next   = gpiozero.Button('GPIO16', bounce_time = 0.1)   # pin #36
-    
-    btn_shdown.when_pressed = btn_shdown_handler
     btn_ldusb.when_pressed  = btn_ldusb_handler
     btn_reload.when_pressed = btn_reload_handler
     btn_prev.when_pressed   = btn_prev_handler
     btn_next.when_pressed   = btn_next_handler
 
+    switch_led('SYSTEM_BOOTED')
+
     xytab = []
     line = 0
     is_ready = False
-    switch_led('OFF')
+    switch_led('APP_DORMANT')
 
     while True:
         time.sleep(0.1)
 
         if g_btn_ldusb_:
             LOG_.debug('LDUSB')
+            switch_led('APP_BUSY')
             subprocess.check_call(['sudo', 'ldusb'])
             is_ready = False
-            switch_led('OFF')
+            switch_led('APP_DORMANT')
 
         if g_btn_reload_:
+            LOG_.debug('RELOAD')
+            switch_led('APP_BUSY')
             xytab = read_csv(CSV_FILE_)
             if 0 < len(xytab):
                 LOG_.debug('RELOAD {} xytab found'.format(len(xytab)))
                 line = 0
                 is_ready = True
-                switch_led('ON')
+                switch_led('APP_READY')
             else:
                 LOG_.debug('csv loading error')
                 is_ready = False
-                switch_led('HEARTBEAT')
+                switch_led('APP_ERROR')
 
         if g_btn_prev_:
+            LOG_.debug('PREV')
             if not is_ready:
                 LOG_.debug('prev, data is not ready')
                 is_ready = False
-                switch_led('HEARTBEAT')
+                switch_led('APP_ERROR')
             else:
                 while True:
                     line -= 1
@@ -411,14 +427,17 @@ def main():
 
                     LOG_.debug('[{}] prev position: ({}, {})'.format(    \
                             line, xytab[line][0], xytab[line][1]))
-                    go_axis(serialObj, xytab[line]):
+                    switch_led('APP_BUSY')
+                    go_axis(serialObj, xytab[line])
+                    switch_led('APP_READY')
                     break;
 
         if g_btn_next_:
+            LOG_.debug('NEXT')
             if not is_ready:
                 LOG_.debug('next, data is not ready')
                 is_ready = False
-                switch_led('HEARTBEAT')
+                switch_led('APP_ERROR')
             else:
                 while True:
                     line += 1
@@ -434,7 +453,9 @@ def main():
                     
                     LOG_.debug('[{}] next position: ({}, {})'.format(    \
                             line, xytab[line][0], xytab[line][1]))
-                    go_axis(serialObj, xytab[line]):
+                    switch_led('APP_BUSY')
+                    go_axis(serialObj, xytab[line])
+                    switch_led('APP_READY')
                     break;
 
         g_btn_ldusb_  = False
