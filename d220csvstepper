@@ -31,9 +31,9 @@ from logging import (basicConfig, getLogger, DEBUG, INFO, WARNING, ERROR, CRITIC
 # This line is required in the program main file only.
 #basicConfig(level = CRITICAL)
 #basicConfig(level = ERROR)
-#basicConfig(level = WARNING)    # as default
+basicConfig(level = WARNING)    # as default
 #basicConfig(level = INFO)
-basicConfig(level = DEBUG)
+#basicConfig(level = DEBUG)
 
 # This line is required for all related files.
 # After this, we can use those logging functions:
